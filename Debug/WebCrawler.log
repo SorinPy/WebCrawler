@@ -1,8 +1,0 @@
-﻿  Manager.cpp
-C:\Program Files (x86)\MySQL\Connector C++ 1.1\include\cppconn\sqlstring.h(39,22): warning C4251: 'sql::SQLString::realStr': class 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' needs to have dll-interface to be used by clients of class 'sql::SQLString'
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\include\xstring(4448): message : see declaration of 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
-C:\Program Files (x86)\MySQL\Connector C++ 1.1\include\cppconn\exception.h(61,29): warning C4251: 'sql::SQLException::sql_state': class 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' needs to have dll-interface to be used by clients of class 'sql::SQLException'
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\include\xstring(4448): message : see declaration of 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
-C:\Program Files (x86)\MySQL\Connector C++ 1.1\include\cppconn\exception.h(145,26): warning C4251: 'sql::SQLUnsupportedOptionException::option': class 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>' needs to have dll-interface to be used by clients of struct 'sql::SQLUnsupportedOptionException'
-C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\include\xstring(4448): message : see declaration of 'std::basic_string<char,std::char_traits<char>,std::allocator<char>>'
-  WebCrawler.vcxproj -> C:\Users\Sorin\source\repos\WebCrawler\Debug\WebCrawler.exe
