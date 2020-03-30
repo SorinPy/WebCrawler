@@ -16,7 +16,7 @@ Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::s
 	page->setAddress("https://facebook.com");
 
 	wr = boost::shared_ptr<WebRequest>(new WebRequest(m_io_context, m_ssl_context));
-	wr->LoadPage(page, [io_context](boost::shared_ptr<Page> page , double time_spend) {
+	/*wr->LoadPage(page, [io_context](boost::shared_ptr<Page> page , double time_spend) {
 		std::cout << "WR spend:" << time_spend << " millis" << std::endl;
 		std::istream headers(&page->getHeadersBuff());
 		std::string line;
@@ -26,7 +26,7 @@ Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::s
 			std::cout << line << std::endl;
 		}
 		io_context->stop();
-	});
+	});*/
 
 
 }
