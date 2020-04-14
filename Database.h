@@ -14,21 +14,40 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/format.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/asio.hpp>
+#include <boost/function.hpp>
+#include <boost/system/error_code.hpp>
+
 
 class Database
 {
 public:
 
 	Database();
+	Database(std::string, std::string, std::string);
+
 	~Database();
+
+
+	void connect();
+
+	void reconnect();
 
 	void insertPages(std::vector<boost::shared_ptr<Page>>&);
 
 	void getPages(std::vector<boost::shared_ptr<Page>>&, size_t);
 
+	void updatePages(std::vector<boost::shared_ptr<Page>>&);
+
+	void moveTempPages();
+
+	bool isConnected() { if (m_Connection == NULL) return false; return !m_Connection->isClosed(); }
 private:
 	sql::Driver* m_Driver;
-	sql::Connection* m_Connection;
-	sql::Statement* m_Query;
+	boost::shared_ptr<sql::Connection> m_Connection;
+
+	std::string m_database_host;
+	std::string m_database_username;
+	std::string m_database_password;
 };
 

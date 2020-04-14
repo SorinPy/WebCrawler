@@ -23,6 +23,8 @@ void WebRequest::LoadPage(boost::shared_ptr<Page> page)
 	req_stream << "Connection: close\r\n";
 	req_stream << "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.122 Safari/537.36\r\n";
 	req_stream << "\r\n";
+	std::cout << m_RequestQuery << std::endl;
+	std::cout << m_FullLink << std::endl;
 	Connect(m_RequestHost, "https");
 }
 
@@ -34,7 +36,8 @@ void WebRequest::LoadPage(boost::shared_ptr<Page> page, wr_callback cb)
 
 void WebRequest::ParseLink()
 {
-	using namespace std;
+	//using namespace std;
+
 	int i = 0;
 	int offset = 0;
 
@@ -48,6 +51,7 @@ void WebRequest::ParseLink()
 		}
 		if (m_FullLink.substr(0, 5) == "https")
 		{
+			std::string baseAddress = "https://";
 			offset += 8;
 			m_RequestType = HTTPS;
 
@@ -55,10 +59,10 @@ void WebRequest::ParseLink()
 			if (iRes == -1)
 			{
 				int iDomain = m_FullLink.find_last_of('.', m_FullLink.length());
-				string Domain = m_FullLink.substr(iDomain + 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "";
@@ -82,12 +86,12 @@ void WebRequest::ParseLink()
 			}
 			else
 			{
-				string subStr = m_FullLink.substr(0, iRes);
+				std::string subStr = m_FullLink.substr(0, iRes);
 				int iDomain = m_FullLink.find_last_of('.', subStr.length());
-				string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "";
@@ -109,10 +113,13 @@ void WebRequest::ParseLink()
 
 				m_RequestQuery = m_FullLink.substr(iRes);
 			}
+			baseAddress.append(m_RequestHost);
+			m_page->setBaseAddress(baseAddress);
 
 		}
 		else if (m_FullLink.substr(0, 4) == "http")
 		{
+			std::string baseAddress = "http://";
 			offset += 7;
 			m_RequestType = HTTP;
 
@@ -120,10 +127,10 @@ void WebRequest::ParseLink()
 			if (iRes == -1)
 			{
 				int iDomain = m_FullLink.find_last_of('.', m_FullLink.length());
-				string Domain = m_FullLink.substr(iDomain + 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "www";
@@ -144,12 +151,12 @@ void WebRequest::ParseLink()
 			}
 			else
 			{
-				string subStr = m_FullLink.substr(0, iRes);
+				std::string subStr = m_FullLink.substr(0, iRes);
 				int iDomain = m_FullLink.find_last_of('.', subStr.length());
-				string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "www";
@@ -168,6 +175,8 @@ void WebRequest::ParseLink()
 
 				m_RequestQuery = m_FullLink.substr(iRes);
 			}
+			baseAddress.append(m_RequestHost);
+			m_page->setBaseAddress(baseAddress);
 		}
 	}
 	catch (std::exception ex)
@@ -225,5 +234,5 @@ void WebRequest::OnDisconnect()
 	m_end_time = boost::chrono::high_resolution_clock::now();
 	//std::cout << "Request end:" << (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time-m_start_time).count()/1000 << std::endl;
 	if (m_callback != NULL)
-		m_callback(m_page, (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time - m_start_time).count() / 1000);
+		m_callback(shared_from_this(), (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time - m_start_time).count() / 1000);
 }

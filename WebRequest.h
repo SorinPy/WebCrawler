@@ -6,16 +6,19 @@
 #include <boost/chrono.hpp>
 #include <iostream>
 #include <boost/function.hpp>
+#include <boost/enable_shared_from_this.hpp>
 
 #include "Page.h"
 
 enum {HTTPS,HTTP};
 enum {GET,POST};
 
-typedef boost::function<void(boost::shared_ptr<Page>,double)> wr_callback;
+class WebRequest;
 
-class WebRequest :
-	public Connection
+typedef boost::function<void(boost::shared_ptr<WebRequest>,double)> wr_callback;
+
+class WebRequest : public boost::enable_shared_from_this<WebRequest> ,
+	public Connection 
 {
 public:
 	WebRequest(boost::shared_ptr<boost::asio::io_context>, boost::shared_ptr<boost::asio::ssl::context>);
@@ -23,6 +26,8 @@ public:
 
 	void LoadPage(boost::shared_ptr<Page>);
 	void LoadPage(boost::shared_ptr<Page>, wr_callback);
+
+	boost::shared_ptr<Page> getPage() { return m_page; }
 
 private:
 
