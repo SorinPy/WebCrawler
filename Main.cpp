@@ -12,7 +12,7 @@
 void WorkerThread(boost::shared_ptr<boost::asio::io_context> io_context)
 {
 
-	while (true)
+	while (!io_context->stopped())
 	{
 		
 		try {
@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
 	//ssl_context->load_verify_file("ca.pem");
 	boost::thread_group tg;
 
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 6; i++)
 	{
 		tg.create_thread(boost::bind(&WorkerThread, io_context));
 	}
@@ -65,10 +65,9 @@ int main(int argc, char* argv[])
 
 	Manager mgr(io_context, ssl_context);
 
-
 	tg.join_all();
 	
-
+	
 	std::cout << "Do you reckon this line displays?" << std::endl;
 
 	return 0;

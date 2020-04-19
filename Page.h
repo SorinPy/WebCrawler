@@ -8,6 +8,7 @@ class Page
 public:
 
 	Page(time_t);
+	Page();
 
 	boost::asio::streambuf& getHeadersBuff() { return m_headers; }
 	boost::asio::streambuf& getContentBuff() { return m_content; }
@@ -19,16 +20,21 @@ public:
 	void headerLoaded(bool val) { m_headersLoaded = val; }
 
 	void setParseDate(time_t date) { m_parseDate = boost::chrono::system_clock::from_time_t(date); }
+	void setParseDate(boost::chrono::time_point<boost::chrono::system_clock> time) { m_parseDate = time; }
 	time_t getParseDate() { return boost::chrono::duration_cast<boost::chrono::seconds>(m_parseDate.time_since_epoch()).count(); }
 
 	void setAddDate(time_t date) { m_addDate = boost::chrono::system_clock::from_time_t(date); }
 	time_t getAddDate() { return boost::chrono::duration_cast<boost::chrono::seconds>(m_addDate.time_since_epoch()).count(); }
+
+	void setBaseAddress(std::string str) { m_baseAddress = str; }
+	std::string getBaseAddress() { return m_baseAddress; }
 
 private:
 	boost::chrono::time_point<boost::chrono::system_clock> m_addDate;
 	boost::chrono::time_point<boost::chrono::system_clock> m_parseDate;
 
 	std::string m_address;
+	std::string m_baseAddress;
 
 	boost::asio::streambuf m_headers;
 	boost::asio::streambuf m_content;

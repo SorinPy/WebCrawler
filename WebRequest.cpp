@@ -1,12 +1,13 @@
 #include "WebRequest.h"
 
-WebRequest::WebRequest(boost::shared_ptr<boost::asio::io_context> io_context, boost::shared_ptr<boost::asio::ssl::context> ssl_context) : Connection(io_context,ssl_context)
+WebRequest::WebRequest(boost::shared_ptr<boost::asio::io_context> io_context, boost::shared_ptr<boost::asio::ssl::context> ssl_context) : Connection(io_context,ssl_context) , m_timeout(io_context->get_executor())
 {
 	m_callback = NULL;
 }
 
 void WebRequest::LoadPage(boost::shared_ptr<Page> page)
 {
+	m_returned = false;
 	m_start_time = boost::chrono::high_resolution_clock::now();
 	m_page = page;
 	m_FullLink = m_page->getAddress();
@@ -34,7 +35,51 @@ void WebRequest::LoadPage(boost::shared_ptr<Page> page, wr_callback cb)
 
 void WebRequest::ParseLink()
 {
-	using namespace std;
+	try {
+		int i = 0;
+		while (i < m_FullLink.length())
+		{
+			m_FullLink[i] = tolower(m_FullLink[i]);
+			i++;
+		}
+		int firstSlash = m_FullLink.find_first_of("/");
+		std::string link = m_FullLink.substr(firstSlash + 2);
+		int nextSlash = link.find_first_of("/");
+
+		m_RequestHost.clear();
+		m_RequestQuery.clear();
+		if (nextSlash < 0)
+		{
+			m_RequestHost = link;
+			m_RequestQuery = "/";
+		}
+		else {
+			m_RequestHost = link.substr(0, nextSlash);
+			m_RequestQuery = link.substr(nextSlash);
+		}
+		std::string baseAddress;
+		if (firstSlash == 5)
+		{
+			baseAddress.append("http://");
+		}
+		else {
+			baseAddress.append("https://");
+		}
+		baseAddress.append(m_RequestHost);
+		m_page->setBaseAddress(baseAddress);
+		//std::cout << m_RequestHost << " - " << m_RequestQuery << std::endl;
+	}
+	catch (std::exception & ex)
+	{
+		std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
+	}
+}
+
+/*** OLD PARSE LINK
+void WebRequest::ParseLink()
+{
+	//using namespace std;
+
 	int i = 0;
 	int offset = 0;
 
@@ -48,6 +93,7 @@ void WebRequest::ParseLink()
 		}
 		if (m_FullLink.substr(0, 5) == "https")
 		{
+			std::string baseAddress = "https://";
 			offset += 8;
 			m_RequestType = HTTPS;
 
@@ -55,10 +101,10 @@ void WebRequest::ParseLink()
 			if (iRes == -1)
 			{
 				int iDomain = m_FullLink.find_last_of('.', m_FullLink.length());
-				string Domain = m_FullLink.substr(iDomain + 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "";
@@ -82,12 +128,12 @@ void WebRequest::ParseLink()
 			}
 			else
 			{
-				string subStr = m_FullLink.substr(0, iRes);
+				std::string subStr = m_FullLink.substr(0, iRes);
 				int iDomain = m_FullLink.find_last_of('.', subStr.length());
-				string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "";
@@ -109,10 +155,13 @@ void WebRequest::ParseLink()
 
 				m_RequestQuery = m_FullLink.substr(iRes);
 			}
+			baseAddress.append(m_RequestHost);
+			m_page->setBaseAddress(baseAddress);
 
 		}
 		else if (m_FullLink.substr(0, 4) == "http")
 		{
+			std::string baseAddress = "http://";
 			offset += 7;
 			m_RequestType = HTTP;
 
@@ -120,10 +169,10 @@ void WebRequest::ParseLink()
 			if (iRes == -1)
 			{
 				int iDomain = m_FullLink.find_last_of('.', m_FullLink.length());
-				string Domain = m_FullLink.substr(iDomain + 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "www";
@@ -144,12 +193,12 @@ void WebRequest::ParseLink()
 			}
 			else
 			{
-				string subStr = m_FullLink.substr(0, iRes);
+				std::string subStr = m_FullLink.substr(0, iRes);
 				int iDomain = m_FullLink.find_last_of('.', subStr.length());
-				string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
+				std::string Domain = m_FullLink.substr(iDomain + 1, iRes - iDomain - 1);
 				int iSubDomain = m_FullLink.find_first_of('.', offset);
 
-				string SubDomain, Name;
+				std::string SubDomain, Name;
 				if (iSubDomain == iDomain)
 				{
 					SubDomain = "www";
@@ -168,6 +217,8 @@ void WebRequest::ParseLink()
 
 				m_RequestQuery = m_FullLink.substr(iRes);
 			}
+			baseAddress.append(m_RequestHost);
+			m_page->setBaseAddress(baseAddress);
 		}
 	}
 	catch (std::exception ex)
@@ -175,7 +226,7 @@ void WebRequest::ParseLink()
 		std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
 	}
 }
-
+*/
 void WebRequest::OnConnect()
 {
 	//std::cout << "Connected" << std::endl;
@@ -183,36 +234,59 @@ void WebRequest::OnConnect()
 
 void WebRequest::OnSend()
 {
+	m_timeout.expires_from_now(boost::posix_time::seconds(5));
+	m_timeout.async_wait(boost::bind(&WebRequest::OnTimeout, this, _1));
 	Recv(m_response);
+	
+}
+
+void WebRequest::OnTimeout(const boost::system::error_code& e)
+{
+	if (e != boost::asio::error::operation_aborted)
+	{
+		try {
+			Close();
+		}
+		catch (std::exception &ex)
+		{
+			std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
+		}
+		OnDisconnect();
+		std::cout << "[Exception][" << __FUNCTION__ << "]: Request timeout!" << std::endl;
+	}
 }
 
 void WebRequest::OnRecv(size_t size)
 {
-	std::istream is(&m_response);
-	std::ostream headers(&m_page->getHeadersBuff());
-	std::ostream content(&m_page->getContentBuff());
-
-	std::string result_line;
-	while (!is.eof())
+	if (m_timeout.expires_from_now(boost::posix_time::seconds(1)) > 0)
 	{
-		std::getline(is, result_line);
-		//std::cout << result_line << std::endl;
-		if (!m_page->headerLoaded())
+		m_timeout.async_wait(boost::bind(&WebRequest::OnTimeout, this, _1));
+		std::istream is(&m_response);
+		std::ostream headers(&m_page->getHeadersBuff());
+		std::ostream content(&m_page->getContentBuff());
+
+		std::string result_line;
+		while (!is.eof())
 		{
-			if (result_line.length() < 3)
+			std::getline(is, result_line);
+			//std::cout << result_line << std::endl;
+			if (!m_page->headerLoaded())
 			{
-				m_page->headerLoaded(true);
+				if (result_line.length() < 3)
+				{
+					m_page->headerLoaded(true);
+				}
+				else {
+					headers << result_line << std::endl;
+				}
 			}
 			else {
-				headers << result_line << std::endl;
+				content << result_line << std::endl;
 			}
 		}
-		else {
-			content << result_line << std::endl;
-		}
-	}
 
-	Recv(m_response);
+		Recv(m_response);
+	}
 }
 
 void WebRequest::OnHandshake()
@@ -222,8 +296,13 @@ void WebRequest::OnHandshake()
 
 void WebRequest::OnDisconnect()
 {
+	boost::system::error_code ec(boost::asio::error::operation_aborted);
+	m_timeout.cancel( ec );
 	m_end_time = boost::chrono::high_resolution_clock::now();
 	//std::cout << "Request end:" << (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time-m_start_time).count()/1000 << std::endl;
-	if (m_callback != NULL)
-		m_callback(m_page, (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time - m_start_time).count() / 1000);
+	if (m_callback != NULL && !m_returned)
+	{
+		m_returned = true;
+		m_callback(shared_from_this(), (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time - m_start_time).count() / 1000);
+	}
 }

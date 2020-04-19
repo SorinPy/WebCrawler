@@ -13,7 +13,7 @@
 
 using tcp = boost::asio::ip::tcp;
 
-class Connection : public boost::enable_shared_from_this<Connection>
+class Connection 
 {
 private:
 	boost::shared_ptr<boost::asio::io_context> m_io_context;
@@ -32,6 +32,8 @@ public:
 	void Send(boost::asio::streambuf&);
 
 	void Recv(boost::asio::streambuf&);
+
+	void Close();
 
 private:
 

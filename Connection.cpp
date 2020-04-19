@@ -24,11 +24,13 @@ void Connection::Connect(const std::string& host, const std::string &port)
 			boost::asio::async_connect(m_ssl_socket.lowest_layer(), endpoint, boost::bind(&Connection::HandleConnect, this, _1));
 		}
 		else {
+			OnDisconnect();
 			std::cout << "[BoostException][" << __FUNCTION__ << "]:" << ec.message() << std::endl;
 		}
 	}
 	catch (std::exception e)
 	{
+		OnDisconnect();
 		std::cout << "[Exception][" << __FUNCTION__ << "]:" << e.what() << std::endl;
 	}
 	
@@ -42,7 +44,9 @@ void Connection::Send(boost::asio::streambuf& buffer)
 	}
 	catch (std::exception e)
 	{
+		
 		std::cout << "[Exception][" << __FUNCTION__ << "]:" << e.what() << std::endl;
+		OnDisconnect();
 	}
 }
 
@@ -54,7 +58,15 @@ void Connection::Recv(boost::asio::streambuf& buffer)
 	catch (std::exception e)
 	{
 		std::cout << "[Exception][" << __FUNCTION__ << "]:" << e.what() << std::endl;
+		OnDisconnect();
 	}
+}
+
+void Connection::Close() 
+{ 
+	m_ssl_socket.lowest_layer().close();
+	//m_ssl_socket.lowest_layer().shutdown(boost::asio::socket_base::shutdown_type::shutdown_both); 
+	//m_ssl_socket.shutdown(); 
 }
 
 void Connection::HandleConnect(boost::system::error_code error)
@@ -62,6 +74,10 @@ void Connection::HandleConnect(boost::system::error_code error)
 	if (error)
 	{
 		std::cout << "[BoostException][" << __FUNCTION__ << "]:" << error.message() << std::endl;
+		if (error != boost::asio::error::operation_aborted)
+		{
+			OnDisconnect();
+		}
 	}
 	else {
 		if (m_ssl_socket.lowest_layer().is_open())
@@ -83,6 +99,10 @@ void Connection::HandleSend(boost::system::error_code error,size_t size)
 	}
 	else {
 		std::cout << "[BoostException][" << __FUNCTION__ << "]:" << error.message() << std::endl;
+		if (error != boost::asio::error::operation_aborted)
+		{
+			OnDisconnect();
+		}
 	}
 }
 
@@ -93,7 +113,10 @@ void Connection::HandleRecv(boost::system::error_code error,size_t size)
 		OnRecv(size);
 	}
 	else {
-		OnDisconnect();
+		if (error != boost::asio::error::operation_aborted)
+		{
+			OnDisconnect();
+		}
 	}
 }
 
@@ -105,5 +128,9 @@ void Connection::HandleHandshake(boost::system::error_code error)
 	}
 	else {
 		std::cout << "[BoostException][" << __FUNCTION__ << "]:" << error.message() << std::endl;
+		if (error != boost::asio::error::operation_aborted)
+		{
+			OnDisconnect();
+		}
 	}
 }
