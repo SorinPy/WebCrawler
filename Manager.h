@@ -28,7 +28,7 @@
 
 using tcp = boost::asio::ip::tcp;
 
-#define MAX_PAGES_IN_WORK 10
+#define MAX_PAGES_IN_WORK 15
 
 
 class Manager
@@ -73,6 +73,8 @@ private:
 	boost::chrono::time_point<boost::chrono::high_resolution_clock> m_appStartTime;
 
 	std::mutex m_mutex;
+	std::mutex m_wr_mutex;
+	std::mutex m_db_mutex;
 
 };
 

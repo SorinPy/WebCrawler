@@ -50,7 +50,7 @@ void Parser::ParsePage(boost::shared_ptr<Page> page, parser_callback cb)
 
 std::vector<std::string> Parser::searchLinks(std::string content)
 {
-	/*
+	std::vector<std::string> ret;
 	int searchOffset = 0;
 	int spos = 0, epos;
 
@@ -61,16 +61,19 @@ std::vector<std::string> Parser::searchLinks(std::string content)
 		{
 			spos += 5;
 			char schar = content.at(spos);
-			std::cout << "Char at pos :" << schar << std::endl;
 			int secondPos = content.find(schar, spos + 1);
 
 			//epos = content.find(content.at(spos), spos + 1);
-			std::string link = content.substr(spos -5, secondPos - spos +5);
-			ret.push_back(link);
-			std::cout << "Link:" << link << std::endl;
+			if (secondPos - 1 > spos + 1)
+			{
+				std::string link = content.substr(spos + 1, secondPos - spos - 1);
+				if (link.at(0) != '#')
+					ret.push_back(link);
+			}
 			searchOffset = secondPos + 1;
 		}
-	}*/
+	}
+	/*
 	std::vector<std::string> ret;
 
 	std::regex e("<a\\s[^>]*href=(\"?)([^\" >]*?)\\1[^>]*>(.*?)</a>");
@@ -90,6 +93,6 @@ std::vector<std::string> Parser::searchLinks(std::string content)
 	catch (std::exception& ex)
 	{
 		std::cout << "[Exception][" << __FUNCTION__ << "]: " << ex.what() << std::endl;
-	}
+	}*/
 	return ret;
 }
