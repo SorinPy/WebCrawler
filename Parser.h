@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <iostream>
+#include <regex>
 
 #include "Page.h"
 
@@ -16,11 +17,14 @@ class Parser;
 
 typedef boost::function<void(boost::shared_ptr<Parser>, double, std::vector< boost::shared_ptr<Page> >)> parser_callback;
 
+
+
 class Parser : public boost::enable_shared_from_this<Parser>
 {
 public:
 	Parser(boost::shared_ptr<boost::asio::io_context> io_context) : m_io_context(io_context) {}
 
+	
 	void ParsePage(boost::shared_ptr<Page> page, parser_callback cb);
 
 private:

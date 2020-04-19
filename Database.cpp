@@ -49,7 +49,7 @@ void Database::connect()
 			{
 				std::cout << "[SQLException][" << __FUNCTION__ << "]:" << ex.getErrorCode() << " ," << ex.getSQLStateCStr() << std::endl;
 			}
-			m_Connection->setAutoCommit(false);
+			m_Connection->setAutoCommit(true);
 			m_Connection->setTransactionIsolation(sql::enum_transaction_isolation::TRANSACTION_READ_COMMITTED);
 		}
 	}
@@ -79,34 +79,43 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 	}
 	else {
 		//milliseconds msStart = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-		std::ostringstream query;
+		
+		boost::shared_ptr<sql::Statement> query;
+		boost::shared_ptr<sql::ResultSet> result;
 
+		
 		while (!pages.empty())
 		{
-			boost::shared_ptr<sql::PreparedStatement> stmt;
+			
+			
 			try {
+				std::ostringstream queryString;
+				query.reset(m_Connection->createStatement());
 				int i = 0;
-				query << "INSERT INTO `link_temp` (`add_date`,`address`) VALUES ";
+				queryString << "INSERT INTO `link_temp` (`add_date`,`address`) VALUES ";
 
 				while (!pages.empty() && i < 50)
 				{
 					i++;
 					boost::shared_ptr<Page> page = pages.back();
 					pages.pop_back();
-					query << boost::format("('%1%','%2%')") % page->getAddDate() % page->getAddress();
+					if (page->getAddress().length() > 254)
+					{
+						i--;
+						std::cout << page->getAddress() << std::endl;
+						continue;
+					}
+					queryString << boost::format("('%1%','%2%')") % page->getAddDate() % page->getAddress();
 					if (!pages.empty() && i < 50)
 					{
-						query << ",";
+						queryString << ",";
 					}
 				}
 
-				std::string qAsStr = query.str();
-
-
-				stmt.reset(m_Connection->prepareStatement(qAsStr.c_str()));
-				stmt->execute();
-				m_Connection->commit();
-				query.clear();
+				std::string qAsStr = queryString.str();
+				query->execute(qAsStr.c_str());
+				
+				//m_Connection->commit();
 			}
 			catch (sql::SQLException & ex)
 			{
@@ -117,6 +126,7 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 				std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
 			}
 		}
+		
 	}
 }
 
@@ -141,7 +151,7 @@ void Database::getPages(std::vector<boost::shared_ptr<Page>>& pages, size_t limi
 			result.reset(query->executeQuery("SELECT `id`,`add_date`,`parse_date`,`address` from `link` where FIND_IN_SET(`id`,@uids)"));
 
 
-			m_Connection->commit();
+			//m_Connection->commit();
 			
 			if (result->rowsCount() > 0)
 			{
@@ -183,9 +193,9 @@ void Database::moveTempPages()
 			query.reset(m_Connection->createStatement());
 			query->execute("insert into link select id,add_date,parse_date , address from link_temp where NOT EXISTS(SELECT * FROM link WHERE (link_temp.address=link.address)) group by address");
 
-			query->execute("DELETE FROM link_temp");
+			query->executeQuery("DELETE FROM link_temp");
 
-			m_Connection->commit();
+			//m_Connection->commit();
 
 		}
 		catch (sql::SQLException & ex)
@@ -210,4 +220,15 @@ where NOT EXISTS(SELECT *
 				 )
 group by address;
 Delete from link_temp
+
+DELIMITER |
+CREATE EVENT e_every_10_mins
+	ON SCHEDULE
+	  EVERY 10 MINUTE
+	COMMENT 'Clears out temp link table every 10 mins.'
+	DO BEGIN
+	  insert into link select id,add_date,parse_date , address from link_temp where NOT EXISTS(SELECT * FROM link WHERE (link_temp.address=link.address)) group by address;
+	  DELETE FROM link_temp;
+	END |
+DELIMITER ;
 */

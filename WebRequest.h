@@ -38,6 +38,8 @@ private:
 
 	void ParseLink();
 
+	bool m_returned;
+
 	boost::shared_ptr<Page> m_page;
 
 	int m_RequestMethod;
@@ -51,6 +53,10 @@ private:
 
 	boost::asio::streambuf m_content;
 	boost::asio::streambuf m_headers;
+
+	boost::asio::deadline_timer m_timeout;
+
+	void OnTimeout(const boost::system::error_code& e);
 
 	// Inherited via Connection
 	virtual void OnConnect() override;

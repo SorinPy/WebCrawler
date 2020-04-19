@@ -33,6 +33,8 @@ public:
 
 	void Recv(boost::asio::streambuf&);
 
+	void Close();
+
 private:
 
 	virtual void OnHandshake() = 0;

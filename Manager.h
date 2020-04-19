@@ -11,11 +11,15 @@
 #include <boost/bind.hpp>
 #include <boost/chrono.hpp>
 
+#include <mutex>
+
+
 #include <algorithm>
 #include <iostream>
 #include <exception>
 #include <list>
 #include <vector>
+#include <utility>
 
 #include "Page.h"
 #include "WebRequest.h"
@@ -65,6 +69,10 @@ private:
 	int m_pagesInWork;
 
 	boost::asio::deadline_timer m_info_timer;
+
+	boost::chrono::time_point<boost::chrono::high_resolution_clock> m_appStartTime;
+
+	std::mutex m_mutex;
 
 };
 

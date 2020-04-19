@@ -41,9 +41,9 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 
 
 Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::shared_ptr<boost::asio::ssl::context> ssl_context): m_io_context(io_context) ,m_ssl_context(ssl_context),
-					m_strand(io_context->get_executor()),m_info_timer(*io_context,boost::posix_time::seconds(1)),m_db("tcp://localhost:3306","root","")
+					m_strand(io_context->get_executor()),m_info_timer(*io_context,boost::posix_time::seconds(1)),m_db("tcp://localhost:3306","root","sorin1992")
 {
-
+	m_appStartTime = boost::chrono::high_resolution_clock::now();
 	m_totalPagesLoaded = 0;
 	m_totalPagesParsed = 0;
 	m_totalTimePageParser = 0;
@@ -54,6 +54,7 @@ Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::s
 	m_info_timer.async_wait(boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnInfoTimerTick, this)));
 
 	m_db.connect();
+
 	
 	//m_signals.async_wait(boost::bind(&Manager::OnAppExit,this,_1,_2));
 
@@ -85,16 +86,26 @@ void Manager::OnAppExit(const boost::system::error_code& error, int signal)
 void Manager::OnPageRequestEnd(boost::shared_ptr<WebRequest> wr, double time_spend)
 {
 	
-	boost::shared_ptr<Parser> parser = boost::shared_ptr<Parser>(new Parser(m_io_context));
-	m_parser_loaded.push_back(parser);
+	
 
-	auto cb = boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnPageParsed, this, _1, _2 , _3));
+	if (wr->getPage()->getContentBuff().size() > 100)
+	{
+		boost::shared_ptr<Parser> parser = boost::shared_ptr<Parser>(new Parser(m_io_context));
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_parser_loaded.push_back(parser);
+		}
+		auto cb = boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnPageParsed, this, _1, _2, _3));
 
-	boost::asio::post(boost::bind(&Parser::ParsePage, parser, wr->getPage(), cb));
 
-	m_wr_loaded.erase(std::find(m_wr_loaded.begin(),m_wr_loaded.end(),wr));
+		boost::asio::post(boost::asio::bind_executor(m_io_context->get_executor(), boost::bind(&Parser::ParsePage, parser, wr->getPage(), cb)));
+	}
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_wr_loaded.erase(std::find(m_wr_loaded.begin(), m_wr_loaded.end(), wr));
+	}
 
-	std::cout << "WR spend:" << time_spend << " millis. Loaded pages:" << m_wr_loaded.size() << std::endl;
+	//std::cout << "WR spend:" << time_spend << " millis. Loaded pages:" << m_wr_loaded.size() << std::endl;
 	m_totalPagesLoaded++;
 	m_totalTimeWebRequests += time_spend / 1000;
 	
@@ -103,14 +114,13 @@ void Manager::OnPageRequestEnd(boost::shared_ptr<WebRequest> wr, double time_spe
 
 void Manager::OnPageParsed(boost::shared_ptr<Parser> parser, double time_spend, std::vector<boost::shared_ptr<Page> > pages)
 {
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_db.insertPages(pages);
+		m_parser_loaded.erase(std::find(m_parser_loaded.begin(), m_parser_loaded.end(), parser));
+	}
 
-	std::for_each(pages.begin(), pages.end(), [](boost::shared_ptr<Page> page) {
-		std::cout << page->getAddress() << std::endl;
-	});
-
-	m_parser_loaded.erase(std::find(m_parser_loaded.begin(), m_parser_loaded.end(), parser));
-
-	std::cout << "Parser spend:" << time_spend << " millis. Pages in parser:" << m_parser_loaded.size() << std::endl;
+	//std::cout << "Parser spend:" << time_spend << " millis. Pages in parser:" << m_parser_loaded.size() << std::endl;
 	m_totalPagesParsed++;
 	m_totalTimePageParser += time_spend / 1000;
 }
@@ -124,10 +134,12 @@ void Manager::OnInfoTimerTick()
 	}
 	else {
 #endif
-		m_db.moveTempPages();
 		if (m_pageQueue.size() == 0)
 		{
-			m_db.getPages(m_pageQueue, 10);
+			{
+				std::lock_guard<std::mutex> lock(m_mutex);
+				m_db.getPages(m_pageQueue, 10);
+			}
 		}
 		if (m_pageQueue.size() > 0 && m_wr_loaded.size() < MAX_PAGES_IN_WORK)
 		{
@@ -137,15 +149,21 @@ void Manager::OnInfoTimerTick()
 				m_pageQueue.pop_back();
 
 				boost::shared_ptr<WebRequest> wr = boost::shared_ptr<WebRequest>(new WebRequest(m_io_context, m_ssl_context));
-
-				m_wr_loaded.push_back(wr);
+				{
+					std::lock_guard<std::mutex> lock(m_mutex);
+					m_wr_loaded.push_back(wr);
+				}
 				auto cb = boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnPageRequestEnd, this, _1, _2));
-
-				boost::asio::post(boost::bind(&WebRequest::LoadPage, wr, page, cb));
+				
+				boost::asio::post(boost::asio::bind_executor(m_io_context->get_executor(), boost::bind(&WebRequest::LoadPage, wr->shared_from_this(), page, cb)));
 			}
 		}
-		std::cout << "Pages loaded:" << m_totalPagesLoaded << "\t\t Total time spend(seconds):" << m_totalTimeWebRequests << std::endl;
-		std::cout << "Pages parsed:" << m_totalPagesParsed << "\t\t Total time spend(seconds):" << m_totalTimePageParser << std::endl;
+		std::cout << "Pages loaded:" << m_totalPagesLoaded << "\t\t Average time/page(seconds):" << m_totalTimeWebRequests/m_totalPagesLoaded << std::endl;
+		std::cout << "Pages parsed:" << m_totalPagesParsed << "\t\t Average time/page(seconds):" << m_totalTimePageParser/m_totalPagesParsed << std::endl;
+		auto timeDiff = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::high_resolution_clock::now() - m_appStartTime).count()/1000;
+
+		std::cout << "Pages parsed per hour(average):" << (3600 * m_totalPagesParsed / timeDiff) << std::endl;
+
 		m_info_timer.expires_at(m_info_timer.expires_at() + boost::posix_time::seconds(1));
 		m_info_timer.async_wait(boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnInfoTimerTick, this)));
 #ifdef _WIN32
