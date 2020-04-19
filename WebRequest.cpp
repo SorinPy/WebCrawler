@@ -251,7 +251,7 @@ void WebRequest::OnTimeout(const boost::system::error_code& e)
 		{
 			std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
 		}
-		OnDisconnect();
+		//OnDisconnect();
 		std::cout << "[Exception][" << __FUNCTION__ << "]: Request timeout!" << std::endl;
 	}
 }
@@ -300,9 +300,8 @@ void WebRequest::OnDisconnect()
 	m_timeout.cancel( ec );
 	m_end_time = boost::chrono::high_resolution_clock::now();
 	//std::cout << "Request end:" << (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time-m_start_time).count()/1000 << std::endl;
-	if (m_callback != NULL && !m_returned)
+	if (m_callback != NULL )
 	{
-		m_returned = true;
 		m_callback(shared_from_this(), (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time - m_start_time).count() / 1000);
 	}
 }

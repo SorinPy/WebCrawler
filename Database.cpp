@@ -31,6 +31,11 @@ void Database::connect()
 		{
 			std::cout << "[" << __FUNCTION__ << "]: Connecting to MySQL on " << m_database_host << "('" << m_database_username << "','#')" << std::endl;
 			m_Connection.reset(m_Driver->connect(m_database_host.c_str(), m_database_username.c_str(), m_database_password.c_str()));
+			for (int i = 1; i < MAX_DB_CONNECTIONS; i++)
+			{
+				auto con = boost::shared_ptr<sql::Connection>(m_Driver->connect(m_database_host.c_str(), m_database_username.c_str(), m_database_password.c_str()));
+				m_freeConnections.push_back(con);
+			}
 		}
 		catch (sql::SQLException ex)
 		{
@@ -51,6 +56,21 @@ void Database::connect()
 			}
 			m_Connection->setAutoCommit(true);
 			m_Connection->setTransactionIsolation(sql::enum_transaction_isolation::TRANSACTION_READ_COMMITTED);
+			for (auto connection : m_freeConnections)
+			{
+				query.reset(connection->createStatement());
+
+				try
+				{
+					query->execute("USE `webcrawler`");
+				}
+				catch (sql::SQLException & ex)
+				{
+					std::cout << "[SQLException][" << __FUNCTION__ << "]:" << ex.getErrorCode() << " ," << ex.getSQLStateCStr() << std::endl;
+				}
+				connection->setAutoCommit(true);
+				connection->setTransactionIsolation(sql::enum_transaction_isolation::TRANSACTION_READ_COMMITTED);
+			}
 		}
 	}
 }
@@ -80,6 +100,14 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 	else {
 		//milliseconds msStart = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 		
+		boost::shared_ptr<sql::Connection> activeCon;
+		{
+			std::unique_lock<std::mutex> lck(m_mutex);
+			m_cv.wait(lck, std::bind(&Database::haveFreeConnection,this));
+			activeCon = m_freeConnections.back();
+			m_freeConnections.pop_back();
+		}
+
 		boost::shared_ptr<sql::Statement> query;
 		boost::shared_ptr<sql::ResultSet> result;
 
@@ -90,7 +118,7 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 			
 			try {
 				std::ostringstream queryString;
-				query.reset(m_Connection->createStatement());
+				query.reset(activeCon->createStatement());
 				int i = 0;
 				queryString << "INSERT INTO `link_temp` (`add_date`,`address`) VALUES ";
 
@@ -126,7 +154,11 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 				std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
 			}
 		}
-		
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_freeConnections.push_back(activeCon);
+			m_cv.notify_one();
+		}
 	}
 }
 

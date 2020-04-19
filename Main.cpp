@@ -15,19 +15,13 @@ void WorkerThread(boost::shared_ptr<boost::asio::io_context> io_context)
 	while (!io_context->stopped())
 	{
 		
-		try {
-			boost::system::error_code ec;
-			io_context->run(ec);
-			if (ec)
-			{
-				std::cout << "[BoostException][" << __FUNCTION__ << "]:" << ec.message() << std::endl;
-			}
-			break;
-		}
-		catch (...)
-		{
-
-		}
+		//try {
+			io_context->run();
+		//}
+		//catch (std::exception & ex)
+		//{
+		//	std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
+		//}
 	}
 }
 
@@ -55,7 +49,7 @@ int main(int argc, char* argv[])
 	//ssl_context->load_verify_file("ca.pem");
 	boost::thread_group tg;
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		tg.create_thread(boost::bind(&WorkerThread, io_context));
 	}

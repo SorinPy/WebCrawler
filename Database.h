@@ -8,6 +8,8 @@
 #include <cppconn\prepared_statement.h>
 
 #include <vector>
+#include <mutex>
+#include <condition_variable>
 
 #include "Page.h"
 
@@ -18,6 +20,7 @@
 #include <boost/function.hpp>
 #include <boost/system/error_code.hpp>
 
+#define MAX_DB_CONNECTIONS 9
 
 class Database
 {
@@ -42,12 +45,19 @@ public:
 	void moveTempPages();
 
 	bool isConnected() { if (m_Connection == NULL) return false; return !m_Connection->isClosed(); }
+
+	bool haveFreeConnection() { return m_freeConnections.size() > 0; }
 private:
 	sql::Driver* m_Driver;
 	boost::shared_ptr<sql::Connection> m_Connection;
 
+	std::vector< boost::shared_ptr<sql::Connection> > m_freeConnections;
+
 	std::string m_database_host;
 	std::string m_database_username;
 	std::string m_database_password;
+
+	std::mutex m_mutex;
+	std::condition_variable m_cv;
 };
 

@@ -50,10 +50,11 @@ Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::s
 	m_totalTimeWebRequests = 0;
 	m_pagesInWork = 0;
 
+	m_db.connect();
 	
 	m_info_timer.async_wait(boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnInfoTimerTick, this)));
 
-	m_db.connect();
+	
 
 	
 	//m_signals.async_wait(boost::bind(&Manager::OnAppExit,this,_1,_2));
@@ -95,13 +96,13 @@ void Manager::OnPageRequestEnd(boost::shared_ptr<WebRequest> wr, double time_spe
 			std::lock_guard<std::mutex> lock(m_mutex);
 			m_parser_loaded.push_back(parser);
 		}
-		auto cb = boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnPageParsed, this, _1, _2, _3));
+		auto cb = boost::asio::bind_executor(m_io_context->get_executor(), boost::bind(&Manager::OnPageParsed, this, _1, _2, _3));
 
 
 		boost::asio::post(boost::asio::bind_executor(m_io_context->get_executor(), boost::bind(&Parser::ParsePage, parser, wr->getPage(), cb)));
 	}
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
+		std::lock_guard<std::mutex> lock(m_wr_mutex);
 		m_wr_loaded.erase(std::find(m_wr_loaded.begin(), m_wr_loaded.end(), wr));
 	}
 
@@ -114,9 +115,11 @@ void Manager::OnPageRequestEnd(boost::shared_ptr<WebRequest> wr, double time_spe
 
 void Manager::OnPageParsed(boost::shared_ptr<Parser> parser, double time_spend, std::vector<boost::shared_ptr<Page> > pages)
 {
+	if(pages.size() > 0)
+		m_db.insertPages(pages);
+
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_db.insertPages(pages);
 		m_parser_loaded.erase(std::find(m_parser_loaded.begin(), m_parser_loaded.end(), parser));
 	}
 
@@ -137,8 +140,8 @@ void Manager::OnInfoTimerTick()
 		if (m_pageQueue.size() == 0)
 		{
 			{
-				std::lock_guard<std::mutex> lock(m_mutex);
-				m_db.getPages(m_pageQueue, 10);
+				std::lock_guard<std::mutex> lock(m_db_mutex);
+				m_db.getPages(m_pageQueue, MAX_PAGES_IN_WORK*1.5);
 			}
 		}
 		if (m_pageQueue.size() > 0 && m_wr_loaded.size() < MAX_PAGES_IN_WORK)
@@ -150,10 +153,10 @@ void Manager::OnInfoTimerTick()
 
 				boost::shared_ptr<WebRequest> wr = boost::shared_ptr<WebRequest>(new WebRequest(m_io_context, m_ssl_context));
 				{
-					std::lock_guard<std::mutex> lock(m_mutex);
+					std::lock_guard<std::mutex> lock(m_wr_mutex);
 					m_wr_loaded.push_back(wr);
 				}
-				auto cb = boost::asio::bind_executor(m_strand, boost::bind(&Manager::OnPageRequestEnd, this, _1, _2));
+				auto cb = boost::asio::bind_executor(m_io_context->get_executor(), boost::bind(&Manager::OnPageRequestEnd, this, _1, _2));
 				
 				boost::asio::post(boost::asio::bind_executor(m_io_context->get_executor(), boost::bind(&WebRequest::LoadPage, wr->shared_from_this(), page, cb)));
 			}
