@@ -41,7 +41,7 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType)
 
 
 Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::shared_ptr<boost::asio::ssl::context> ssl_context): m_io_context(io_context) ,m_ssl_context(ssl_context),
-					m_strand(io_context->get_executor()),m_info_timer(*io_context,boost::posix_time::seconds(1)),m_db("tcp://localhost:3306","root","sorin1992")
+					m_strand(io_context->get_executor()),m_info_timer(*io_context,boost::posix_time::seconds(1)),m_db("tcp://localhost:3306","root","parolamea123")
 {
 	m_appStartTime = boost::chrono::high_resolution_clock::now();
 	m_totalPagesLoaded = 0;

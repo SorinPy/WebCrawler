@@ -130,7 +130,7 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 					if (page->getAddress().length() > 254)
 					{
 						i--;
-						std::cout << page->getAddress() << std::endl;
+						//std::cout << page->getAddress() << std::endl;
 						continue;
 					}
 					queryString << boost::format("('%1%','%2%')") % page->getAddDate() % page->getAddress();
