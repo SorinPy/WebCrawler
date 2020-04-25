@@ -25,6 +25,7 @@ void Connection::Connect(const std::string& host, const std::string &port)
 		}
 		else {
 			OnDisconnect();
+			std::cout << host << std::endl;
 			std::cout << "[BoostException][" << __FUNCTION__ << "]:" << ec.message() << std::endl;
 		}
 	}

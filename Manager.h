@@ -28,7 +28,7 @@
 
 using tcp = boost::asio::ip::tcp;
 
-#define MAX_PAGES_IN_WORK 15
+#define MAX_PAGES_IN_WORK 35
 
 
 class Manager
@@ -65,6 +65,7 @@ private:
 
 	int m_totalPagesLoaded;
 	int m_totalPagesParsed;
+	int m_totalCode200Pages;
 
 	int m_pagesInWork;
 
