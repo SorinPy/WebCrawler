@@ -18,6 +18,23 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Connection.cpp" />
+    <ClCompile Include="src\Database.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\Manager.cpp" />
+    <ClCompile Include="src\Page.cpp" />
+    <ClCompile Include="src\Parser.cpp" />
+    <ClCompile Include="src\WebRequest.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Connection.h" />
+    <ClInclude Include="src\Database.h" />
+    <ClInclude Include="src\Manager.h" />
+    <ClInclude Include="src\Page.h" />
+    <ClInclude Include="src\Parser.h" />
+    <ClInclude Include="src\WebRequest.h" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <ProjectGuid>{2B32B35F-5CAA-458D-A282-B7E576FFD1C0}</ProjectGuid>
@@ -145,23 +162,6 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="Connection.cpp" />
-    <ClCompile Include="Database.cpp" />
-    <ClCompile Include="Main.cpp" />
-    <ClCompile Include="Manager.cpp" />
-    <ClCompile Include="Page.cpp" />
-    <ClCompile Include="Parser.cpp" />
-    <ClCompile Include="WebRequest.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="Connection.h" />
-    <ClInclude Include="Database.h" />
-    <ClInclude Include="Manager.h" />
-    <ClInclude Include="Page.h" />
-    <ClInclude Include="Parser.h" />
-    <ClInclude Include="WebRequest.h" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
