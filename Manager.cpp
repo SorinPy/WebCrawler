@@ -48,6 +48,7 @@ Manager::Manager(boost::shared_ptr<boost::asio::io_context> io_context, boost::s
 	m_totalPagesParsed = 0;
 	m_totalTimePageParser = 0;
 	m_totalTimeWebRequests = 0;
+	m_totalCode200Pages = 0;
 	m_pagesInWork = 0;
 
 	m_db.connect();
@@ -84,12 +85,16 @@ void Manager::OnAppExit(const boost::system::error_code& error, int signal)
 
 }
 
+/*
+TODO: creeaza un nou webrequest imediat ce se termina un altul
+		->ai grija de sincronizarea variabilelor
+*/
 void Manager::OnPageRequestEnd(boost::shared_ptr<WebRequest> wr, double time_spend)
 {
 	
 	
 
-	if (wr->getPage()->getContentBuff().size() > 100)
+	if (wr->getPage()->headerLoaded())
 	{
 		boost::shared_ptr<Parser> parser = boost::shared_ptr<Parser>(new Parser(m_io_context));
 		{
@@ -124,6 +129,10 @@ void Manager::OnPageParsed(boost::shared_ptr<Parser> parser, double time_spend, 
 	}
 
 	//std::cout << "Parser spend:" << time_spend << " millis. Pages in parser:" << m_parser_loaded.size() << std::endl;
+	if (parser->getPage()->StatusCode == 200)
+	{
+		m_totalCode200Pages++;
+	}
 	m_totalPagesParsed++;
 	m_totalTimePageParser += time_spend / 1000;
 }
@@ -162,7 +171,7 @@ void Manager::OnInfoTimerTick()
 			}
 		}
 		std::cout << "Pages loaded:" << m_totalPagesLoaded << "\t\t Average time/page(seconds):" << m_totalTimeWebRequests/m_totalPagesLoaded << std::endl;
-		std::cout << "Pages parsed:" << m_totalPagesParsed << "\t\t Average time/page(seconds):" << m_totalTimePageParser/m_totalPagesParsed << std::endl;
+		std::cout << "Pages parsed:" << m_totalPagesParsed << "(Code 200:" << ((m_totalPagesParsed > 0) ?(m_totalCode200Pages*100/m_totalPagesParsed) : 0) << "%)\t Average time/page(seconds):" << m_totalTimePageParser/m_totalPagesParsed << std::endl;
 		auto timeDiff = boost::chrono::duration_cast<boost::chrono::milliseconds>(boost::chrono::high_resolution_clock::now() - m_appStartTime).count()/1000;
 
 		std::cout << "Pages parsed per hour(average):" << (3600 * m_totalPagesParsed / timeDiff) << std::endl;

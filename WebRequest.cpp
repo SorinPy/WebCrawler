@@ -20,7 +20,7 @@ void WebRequest::LoadPage(boost::shared_ptr<Page> page)
 	req_stream << " HTTP/1.1\r\n";
 	req_stream << "Accept-Encoding: None\r\n";
 	req_stream << "Host: " << m_RequestHost << "\r\n";
-	req_stream << "Accept: */*\r\n";
+	req_stream << "Accept: text/html\r\n";
 	req_stream << "Connection: close\r\n";
 	req_stream << "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.122 Safari/537.36\r\n";
 	req_stream << "\r\n";
@@ -42,6 +42,7 @@ void WebRequest::ParseLink()
 			m_FullLink[i] = tolower(m_FullLink[i]);
 			i++;
 		}
+
 		int firstSlash = m_FullLink.find_first_of("/");
 		std::string link = m_FullLink.substr(firstSlash + 2);
 		int nextSlash = link.find_first_of("/");

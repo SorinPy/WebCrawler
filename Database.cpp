@@ -115,10 +115,11 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 		while (!pages.empty())
 		{
 			
-			
+			std::string lQuery;
 			try {
 				std::ostringstream queryString;
 				query.reset(activeCon->createStatement());
+
 				int i = 0;
 				queryString << "INSERT INTO `link_temp` (`add_date`,`address`) VALUES ";
 
@@ -141,6 +142,7 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 				}
 
 				std::string qAsStr = queryString.str();
+				lQuery = qAsStr;
 				query->execute(qAsStr.c_str());
 				
 				//m_Connection->commit();
@@ -148,6 +150,8 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 			catch (sql::SQLException & ex)
 			{
 				std::cout << "[SQLException][" << __FUNCTION__ << "]:" << ex.getErrorCode() << " ," << ex.getSQLStateCStr() << std::endl;
+				std::cout << lQuery << std::endl;
+				std::cout << "=================" << std::endl;
 			}
 			catch (std::exception & ex)
 			{
@@ -172,13 +176,15 @@ void Database::getPages(std::vector<boost::shared_ptr<Page>>& pages, size_t limi
 		boost::shared_ptr<sql::ResultSet> result;
 		boost::shared_ptr<sql::Statement> query;
 		try {
-
+			std::stringstream ss;
 		
 			query.reset(m_Connection->createStatement());
 			
 			query->execute("SET @uids := 0");
 
-			query->execute(" UPDATE `link` SET `parse_date` = `parse_date`+1 WHERE `parse_date` < 1 AND(SELECT @uids := CONCAT_WS(',', `id`, @uids)) order by `id` asc limit 10");
+			ss << boost::format("UPDATE `link` SET `parse_date` = `parse_date` + LENGTH(@uids := CONCAT_WS(',', `id`, @uids)) WHERE parse_date < 1 ORDER BY `id` ASC LIMIT %1%") % limit;
+
+			query->execute(ss.str().c_str());
 
 			result.reset(query->executeQuery("SELECT `id`,`add_date`,`parse_date`,`address` from `link` where FIND_IN_SET(`id`,@uids)"));
 

@@ -2,6 +2,8 @@
 
 #include <boost/chrono.hpp>
 #include <boost/asio/streambuf.hpp>
+#include <map>
+
 class Page
 {
 
@@ -29,6 +31,11 @@ public:
 	void setBaseAddress(std::string str) { m_baseAddress = str; }
 	std::string getBaseAddress() { return m_baseAddress; }
 
+
+	//public non encapsulated vars
+
+	int StatusCode;
+	std::map<std::string, std::string> ResponseHeaders;
 private:
 	boost::chrono::time_point<boost::chrono::system_clock> m_addDate;
 	boost::chrono::time_point<boost::chrono::system_clock> m_parseDate;

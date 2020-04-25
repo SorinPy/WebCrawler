@@ -7,7 +7,13 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/function.hpp>
 
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/regex.hpp>
+#include <map>
+
 #include <vector>
+#include <list>
 #include <iostream>
 #include <regex>
 
@@ -27,7 +33,11 @@ public:
 	
 	void ParsePage(boost::shared_ptr<Page> page, parser_callback cb);
 
+	boost::shared_ptr<Page> getPage() { return m_page; }
 private:
+
+	void parseHeaders();
+
 	boost::shared_ptr<Page> m_page;
 
 	boost::shared_ptr<boost::asio::io_context> m_io_context;
@@ -35,7 +45,9 @@ private:
 	boost::chrono::high_resolution_clock::time_point m_start_time;
 	boost::chrono::high_resolution_clock::time_point m_end_time;
 
-	std::vector<std::string> searchLinks(std::string);
+	void searchLinks(std::string, std::vector<std::string>&);
+
+	bool isValidUrl(const std::string&);
 
 	parser_callback m_cb;
 };
