@@ -9,14 +9,14 @@
 
 #include "Manager.h"
 
-void WorkerThread(boost::shared_ptr<boost::asio::io_context> io_context)
+void WorkerThread(boost::asio::io_context& io_context)
 {
 
-	while (!io_context->stopped())
+	while (!io_context.stopped())
 	{
 		
 		//try {
-			io_context->run();
+			io_context.run();
 		//}
 		//catch (std::exception & ex)
 		//{
@@ -27,13 +27,10 @@ void WorkerThread(boost::shared_ptr<boost::asio::io_context> io_context)
 
 int main(int argc, char* argv[])
 {
-	boost::shared_ptr<boost::asio::io_service> io_context = 
-		boost::shared_ptr<boost::asio::io_context>(
-			new boost::asio::io_context()
-			);
+	boost::asio::io_context io_context;
 	boost::shared_ptr<boost::asio::io_service::work> work = 
 		boost::shared_ptr<boost::asio::io_service::work>(
-			new boost::asio::io_service::work(*io_context)
+			new boost::asio::io_service::work(io_context)
 			);
 
 	boost::shared_ptr<boost::asio::ssl::context> ssl_context =
@@ -43,7 +40,7 @@ int main(int argc, char* argv[])
 
 
 
-	boost::asio::strand<boost::asio::io_service::executor_type> strand(io_context->get_executor());
+	//boost::asio::strand<boost::asio::io_service::executor_type> strand(io_context->get_executor());
 
 	ssl_context->set_default_verify_paths();
 	//ssl_context->load_verify_file("ca.pem");
@@ -51,7 +48,7 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; i < 8; i++)
 	{
-		tg.create_thread(boost::bind(&WorkerThread, io_context));
+		tg.create_thread(boost::bind(&WorkerThread, boost::ref(io_context)));
 	}
 	std::cout << "WebCrawler started with (" << tg.size() << ") threads." << std::endl;
 	

@@ -21,7 +21,7 @@ class WebRequest : public boost::enable_shared_from_this<WebRequest> ,
 	public Connection 
 {
 public:
-	WebRequest(boost::shared_ptr<boost::asio::io_context>, boost::shared_ptr<boost::asio::ssl::context>);
+	WebRequest(boost::asio::io_context&, boost::shared_ptr<boost::asio::ssl::context>);
 
 
 	void LoadPage(boost::shared_ptr<Page>);
@@ -54,15 +54,17 @@ private:
 	boost::asio::streambuf m_content;
 	boost::asio::streambuf m_headers;
 
-	boost::asio::deadline_timer m_timeout;
 
-	void OnTimeout(const boost::system::error_code& e);
+	size_t m_request_size;
+	size_t m_request_size_done;
+
+	std::string m_status;
 
 	// Inherited via Connection
 	virtual void OnConnect() override;
 
 	// Inherited via Connection
-	virtual void OnSend() override;
+	virtual void OnSend(const boost::system::error_code& error, std::size_t bytes_transferred) override;
 	virtual void OnRecv(size_t) override;
 
 	// Inherited via Connection
@@ -70,4 +72,7 @@ private:
 
 	// Inherited via Connection
 	virtual void OnDisconnect() override;
+
+	// Inherited via Connection
+	virtual void OnTimeout(boost::system::error_code) override;
 };

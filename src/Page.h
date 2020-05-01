@@ -36,6 +36,11 @@ public:
 
 	int StatusCode;
 	std::map<std::string, std::string> ResponseHeaders;
+	std::string MainDomain;
+
+	boost::asio::streambuf RawResponse;
+
+	bool Timeout;
 private:
 	boost::chrono::time_point<boost::chrono::system_clock> m_addDate;
 	boost::chrono::time_point<boost::chrono::system_clock> m_parseDate;
