@@ -13,33 +13,99 @@ void Parser::ParsePage(boost::shared_ptr<Page> page, parser_callback cb)
 	std::vector<boost::shared_ptr<Page>> ToAdd;
 
 	//std::string headers((std::istreambuf_iterator<char>(&page->getHeadersBuff())), std::istreambuf_iterator<char>());
-	std::string content((std::istreambuf_iterator<char>(&page->getContentBuff())), std::istreambuf_iterator<char>());
-
 	
+	std::string content;
+
+
 	parseHeaders();
-	
-
 
 	if (m_page->StatusCode == 200)
 	{
-		
-		searchLinks(content , urls);
-		
-		for (std::string& el : urls)
+		auto encoding = m_page->ResponseHeaders.find("transfer-encoding");
+		if (encoding != m_page->ResponseHeaders.end())
 		{
-			if (el.find("http", 0, 4))
+			if (encoding->second == "chunked")
 			{
-				if (el.at(0) != '/')
+				//content = std::string((std::istreambuf_iterator<char>(&page->getContentBuff())), std::istreambuf_iterator<char>());
+				//std::cout << content;
+
+				std::istream is(&m_page->getContentBuff());
+				std::string line = "";
+				int chunk_size = 0;
+				int chunk_parsed = 0;
+				std::stringstream ss;
+
+
+
+				while (!is.eof())
 				{
-					el = '/' + el;
-				}
-				el = page->getBaseAddress() + el;
+					std::getline(is, line);
+					//std::cout <<chunk_parsed << "/" << chunk_size << " - " << content.length() << std::endl;
+					if (chunk_parsed < chunk_size)
+					{
+						chunk_parsed += line.length() + 1;
+						boost::trim_right(line);
+						content += line;
+						
+					}
+					else {
+						chunk_size = 0;
+						chunk_parsed = 0;
+						
+						if (line.length() > 0)
+						{
+							ss << std::hex << line;
+							ss >> chunk_size;
+							if (chunk_size == 0)
+								break;
+						}
+						else
+						{
+							is.seekg(0, std::ios::end);
+						}
+					}
+				} 
 			}
+		}else
+		{
+			content = std::string((std::istreambuf_iterator<char>(&page->getContentBuff())), std::istreambuf_iterator<char>());
+		}
+		
+		//std::string content((std::istreambuf_iterator<char>(&page->getContentBuff())), std::istreambuf_iterator<char>());
+
+
+		searchLinks(content, urls);
+	}
+	else if (m_page->StatusCode == 301 
+		|| m_page->StatusCode == 302
+		|| m_page->StatusCode == 307
+		|| m_page->StatusCode == 308)
+	{
+		auto location = m_page->ResponseHeaders.find("location");
+		if (location != m_page->ResponseHeaders.end())
+		{
+			urls.push_back(m_page->ResponseHeaders["location"]);
+		}
+	}
+
+	for (std::string& el : urls)
+	{
+		if (el.find("http", 0, 4) == std::string::npos)
+		{
+			if (el.at(0) != '/')
+			{
+				el = '/' + el;
+			}
+			el = page->getBaseAddress() + el;
+		}
+		if (m_followOnlyDomain && el.find(m_page->MainDomain) != std::string::npos)
+		{
 			auto tpage = boost::shared_ptr<Page>(new Page());
 			tpage->setAddress(el);
 			ToAdd.push_back(tpage);
 		}
 	}
+
 
 	m_end_time = boost::chrono::high_resolution_clock::now();
 	if (cb != NULL)
@@ -67,16 +133,18 @@ void Parser::parseHeaders()
 			std::string statusCode = line.substr(separatorPos + 1, sec_pos - separatorPos - 1);
 			m_page->StatusCode = boost::lexical_cast<int>(statusCode);
 
-			if (m_page->StatusCode == 200)
+
+			while (!headers.eof())
 			{
-				while (!headers.eof())
+				std::getline(headers, line);
+				separatorPos = line.find_first_of(": ");
+				if (separatorPos != std::string::npos)
 				{
-					std::getline(headers, line);
-					separatorPos = line.find_first_of(": ");
-					if (separatorPos != std::string::npos)
-					{
-						m_page->ResponseHeaders[line.substr(0, separatorPos)] = line.substr(separatorPos + 2);
-					}
+					std::string header = line.substr(0, separatorPos);
+					std::string value = line.substr(separatorPos + 2);
+					boost::algorithm::to_lower(header);
+					boost::algorithm::trim(value);
+					m_page->ResponseHeaders[header] = value;
 				}
 			}
 		}
@@ -85,62 +153,43 @@ void Parser::parseHeaders()
 
 void Parser::searchLinks(std::string content , std::vector<std::string> & ret)
 {
-	int searchOffset = 0;
-	int spos = 0;
+	size_t searchOffset = 0;
+	size_t spos = 0;
 
-	/*
-	try {
-		std::regex pattern("<[a]+\\s+(?:[^>]*?\\s+)?[href]+=[\"']([^\"']*)['\"]");
-		std::smatch match;
-		//boost::regex forbiden("/([\'\\])/s");
 
-		std::string fstr = R"reg((^#|[\'\\]))reg";
-		std::regex forbiden( fstr );
-
-		
-
-		std::string::const_iterator searchStart(content.cbegin());
-
-		while (std::regex_search(searchStart, content.cend(), match, pattern))
-		{
-			std::string link(match[1].str());
-			//if(link.length() < 255)
-			{
-				//link.erase(std::remove(link.begin(), link.end(), '\n'), link.end());
-				//if (!std::regex_search(link, forbiden))
-				{
-					ret.push_back(link);
-				}
-			}
-			searchStart = match.suffix().first;
-		}
-	}
-	catch (std::exception & ex)
-	{
-		std::cout << "[Exception][" << __FUNCTION__ << "] " << ex.what() << std::endl;
-	}
-	*/
-	
-	while (spos >= 0)
+	while (spos != std::string::npos)
 	{
 		spos = content.find("href=\"", searchOffset, 5);
-		if (spos >= 0)
+		if (spos != std::string::npos)
 		{
 			spos += 5;
 			//char schar = content.at(spos);
-			int secondPos = content.find('"', spos + 1);
+			size_t secondPos = content.find('"', spos + 1);
 
 			//epos = content.find(content.at(spos), spos + 1);
-			if (secondPos - 1 > spos + 1)
+			if (secondPos != std::string::npos)
 			{
 				std::string link = content.substr(spos + 1, secondPos - spos - 1);
 
 				if (isValidUrl(link))
 				{
-					ret.push_back(link);
+					link.erase(std::remove(link.begin(), link.end(), '\n'), link.end());
+					if (m_followOnlyDomain)
+					{
+						if (link.find(m_page->MainDomain.c_str(), 0, m_page->MainDomain.length()))
+						{
+							ret.push_back(link);
+						}
+					}
+					else {
+						ret.push_back(link);
+					}
 				}
+				searchOffset = secondPos + 1;
 			}
-			searchOffset = secondPos + 1;
+			else {
+				break;
+			}
 		}
 	}
 	
@@ -173,7 +222,7 @@ bool Parser::isValidUrl(const std::string& data)
 
 	if (data.length() > 254 || data.length() == 0)
 		return false;
-	if (data.at(0) == '#')
+	if (data.find('#') != std::string::npos)
 		return false;
 	if (data.find('\'') != std::string::npos || data.find('\\') != std::string::npos)
 		return false;

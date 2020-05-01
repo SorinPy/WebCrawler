@@ -34,7 +34,7 @@ using tcp = boost::asio::ip::tcp;
 class Manager
 {
 public:
-	Manager(boost::shared_ptr < boost::asio::io_context>, boost::shared_ptr<boost::asio::ssl::context>);
+	Manager(boost::asio::io_context&, boost::shared_ptr<boost::asio::ssl::context>);
 
 private:
 
@@ -46,9 +46,10 @@ private:
 	void OnInfoTimerTick();
 
 	std::list<boost::shared_ptr<WebRequest>> m_wr_loaded;
+	std::list<boost::shared_ptr<WebRequest>> m_wr_timed_out;
 	std::list<boost::shared_ptr<Parser>> m_parser_loaded;
 
-	boost::shared_ptr<boost::asio::io_context> m_io_context;
+	boost::asio::io_context& m_io_context;
 
 	boost::shared_ptr<boost::asio::ssl::context> m_ssl_context;
 
@@ -66,6 +67,7 @@ private:
 	int m_totalPagesLoaded;
 	int m_totalPagesParsed;
 	int m_totalCode200Pages;
+	int m_totalTimeouts;
 
 	int m_pagesInWork;
 

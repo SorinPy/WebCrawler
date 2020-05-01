@@ -1,6 +1,6 @@
 #include "WebRequest.h"
 
-WebRequest::WebRequest(boost::shared_ptr<boost::asio::io_context> io_context, boost::shared_ptr<boost::asio::ssl::context> ssl_context) : Connection(io_context,ssl_context) , m_timeout(io_context->get_executor())
+WebRequest::WebRequest(boost::asio::io_context& io_context, boost::shared_ptr<boost::asio::ssl::context> ssl_context) : Connection(io_context,ssl_context)
 {
 	m_callback = NULL;
 }
@@ -12,7 +12,8 @@ void WebRequest::LoadPage(boost::shared_ptr<Page> page)
 	m_page = page;
 	m_FullLink = m_page->getAddress();
 
-
+	m_page->Timeout = false;
+	m_request_size_done = 0;
 	ParseLink();
 	std::ostream req_stream(&m_request);
 	req_stream << "GET ";
@@ -24,6 +25,7 @@ void WebRequest::LoadPage(boost::shared_ptr<Page> page)
 	req_stream << "Connection: close\r\n";
 	req_stream << "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.122 Safari/537.36\r\n";
 	req_stream << "\r\n";
+	m_request_size = m_request.size();
 	Connect(m_RequestHost, "https");
 }
 
@@ -67,6 +69,14 @@ void WebRequest::ParseLink()
 			baseAddress.append("https://");
 		}
 		baseAddress.append(m_RequestHost);
+		//www.dota.ro
+		int lastDot = m_RequestHost.find_last_of('.');
+		int preLastDot = m_RequestHost.substr(0, lastDot).find_last_of('.');
+		if (preLastDot != std::string::npos)
+		{
+			m_page->MainDomain = m_RequestHost.substr(preLastDot + 1, m_RequestHost.size() - preLastDot - 1);
+		}
+
 		m_page->setBaseAddress(baseAddress);
 		//std::cout << m_RequestHost << " - " << m_RequestQuery << std::endl;
 	}
@@ -230,43 +240,75 @@ void WebRequest::ParseLink()
 */
 void WebRequest::OnConnect()
 {
+	m_status = "CONNECTED";
 	//std::cout << "Connected" << std::endl;
 }
 
-void WebRequest::OnSend()
+void WebRequest::OnSend(const boost::system::error_code& error, std::size_t size)
 {
-	m_timeout.expires_from_now(boost::posix_time::seconds(5));
-	m_timeout.async_wait(boost::bind(&WebRequest::OnTimeout, this, _1));
-	Recv(m_response);
+	m_status = "SEND";
+	if (!error && size > 0)
+	{
+		if (size < m_request_size)
+		{
+			std::cout << "ERRRORRRR" << std::endl;
+		}
+		Recv(m_response);
+	}
+	else {
+		std::cout << "[BoostException][" << __FUNCTION__ << "]:" << error.message() << std::endl;
+	}
 	
 }
 
-void WebRequest::OnTimeout(const boost::system::error_code& e)
+void WebRequest::OnTimeout(boost::system::error_code e)
 {
-	if (e != boost::asio::error::operation_aborted)
-	{
-		try {
-			Close();
-		}
-		catch (std::exception &ex)
-		{
-			std::cout << "[Exception][" << __FUNCTION__ << "]:" << ex.what() << std::endl;
-		}
-		//OnDisconnect();
-		std::cout << "[Exception][" << __FUNCTION__ << "]: Request timeout!" << std::endl;
-	}
+	m_page->Timeout = true;
+	//OnDisconnect();
 }
 
 void WebRequest::OnRecv(size_t size)
 {
-	if (m_timeout.expires_from_now(boost::posix_time::seconds(1)) > 0)
+	m_status = "RECEIVED_SOME";
+
+	std::istream is(&m_response);
+	std::ostream rawBuffer(&m_page->RawResponse);
+
+
+
+
+	if (size > 0)
 	{
-		m_timeout.async_wait(boost::bind(&WebRequest::OnTimeout, this, _1));
-		std::istream is(&m_response);
+		boost::shared_ptr<char> buffer = boost::shared_ptr<char>(new char[size]);
+		try {
+			is.read(buffer.get(), size);
+			rawBuffer.write(buffer.get(), size);
+		}
+		catch (...)
+		{
+
+		}
+	}
+	Recv(m_response);
+
+}
+
+void WebRequest::OnHandshake()
+{
+	m_status = "HANDSHAKED";
+	Send(m_request);
+}
+
+void WebRequest::OnDisconnect()
+{
+	if (!m_page->headerLoaded())
+	{
+		std::istream is(&m_page->RawResponse);
 		std::ostream headers(&m_page->getHeadersBuff());
 		std::ostream content(&m_page->getContentBuff());
 
 		std::string result_line;
+
 		while (!is.eof())
 		{
 			std::getline(is, result_line);
@@ -285,20 +327,8 @@ void WebRequest::OnRecv(size_t size)
 				content << result_line << std::endl;
 			}
 		}
-
-		Recv(m_response);
 	}
-}
 
-void WebRequest::OnHandshake()
-{
-	Send(m_request);
-}
-
-void WebRequest::OnDisconnect()
-{
-	boost::system::error_code ec(boost::asio::error::operation_aborted);
-	m_timeout.cancel( ec );
 	m_end_time = boost::chrono::high_resolution_clock::now();
 	//std::cout << "Request end:" << (double)boost::chrono::duration_cast<boost::chrono::microseconds>(m_end_time-m_start_time).count()/1000 << std::endl;
 	if (m_callback != NULL )

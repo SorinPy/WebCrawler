@@ -131,7 +131,7 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 					if (page->getAddress().length() > 254)
 					{
 						i--;
-						std::cout << page->getAddress() << std::endl;
+						//std::cout << page->getAddress() << std::endl;
 						continue;
 					}
 					queryString << boost::format("('%1%','%2%')") % page->getAddDate() % page->getAddress();
@@ -149,9 +149,9 @@ void Database::insertPages(std::vector<boost::shared_ptr<Page>>& pages)
 			}
 			catch (sql::SQLException & ex)
 			{
-				std::cout << "[SQLException][" << __FUNCTION__ << "]:" << ex.getErrorCode() << " ," << ex.getSQLStateCStr() << std::endl;
-				std::cout << lQuery << std::endl;
-				std::cout << "=================" << std::endl;
+				//std::cout << "[SQLException][" << __FUNCTION__ << "]:" << ex.getErrorCode() << " ," << ex.getSQLStateCStr() << std::endl;
+				//std::cout << lQuery << std::endl;
+				//std::cout << "=================" << std::endl;
 			}
 			catch (std::exception & ex)
 			{
